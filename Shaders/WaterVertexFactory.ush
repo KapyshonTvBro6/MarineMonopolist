@@ -1,0 +1,68 @@
+float3 WaterVertexPosition_GetDisplacement(
+    float3 WorldPosition,
+    float Time,
+    float3 WaveParams0, // x: amplitude0, y: frequency0, z: speed0, w: unused
+    float3 WaveParams1,
+    float3 WaveParams2,
+    float3 WaveParams3,
+    float2 WaveDir0,
+    float2 WaveDir1,
+    float2 WaveDir2,
+    float2 WaveDir3,
+    out float3 OutNormal,
+    out float OutFoamMask
+)
+{
+    float3 pos = WorldPosition;
+    float3 totalDisplacement = float3(0,0,0);
+    float3 normal = float3(0,1,0);
+
+    [unroll]
+    for (int i = 0; i < 4; i++)
+    {
+        float3 wp = WaveParams0;
+        float2 wd = WaveDir0;
+        if (i == 1) { wp = WaveParams1; wd = WaveDir1; }
+        if (i == 2) { wp = WaveParams2; wd = WaveDir2; }
+        if (i == 3) { wp = WaveParams3; wd = WaveDir3; }
+
+        float amplitude = wp.x;
+        float frequency = wp.y;
+        float speed = wp.z;
+        float2 dir = normalize(wd);
+
+        float theta = frequency * dot(dir, WorldPosition.xz) + speed * Time;
+        float S = sin(theta);
+        float C = cos(theta);
+
+        float3 displacement = float3(
+            dir.x * amplitude * C,
+            amplitude * S,
+            dir.y * amplitude * C
+        );
+        totalDisplacement += displacement;
+
+        float3 waveNormal = float3(
+            -(dir.x * frequency * amplitude * C),
+            1.0 - (frequency * amplitude * S),
+            -(dir.y * frequency * amplitude * C)
+        );
+        normal += waveNormal;
+    }
+
+    OutNormal = normalize(normal);
+    OutFoamMask = saturate(1.0 - dot(OutNormal, float3(0,1,0)));
+    return totalDisplacement;
+}
+
+float3 WaterVertexPosition_Simple(float3 WorldPosition, float Time, float Amplitude, float Frequency, float Speed, out float3 OutNormal)
+{
+    float2 uv = WorldPosition.xz * Frequency + Time * Speed;
+    float wave = sin(uv.x + uv.y) * Amplitude;
+
+    float dx = cos(uv.x + uv.y) * Amplitude * Frequency;
+    float dz = cos(uv.x + uv.y) * Amplitude * Frequency;
+
+    OutNormal = normalize(float3(-dx, 1.0, -dz));
+    return float3(0, wave, 0);
+}

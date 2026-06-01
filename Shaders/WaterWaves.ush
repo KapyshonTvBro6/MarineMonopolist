@@ -1,0 +1,89 @@
+float3 GerstnerWave(float4 wave, float3 worldPos, float time, out float3 tangent, out float3 binormal)
+{
+    float steepness = wave.z;
+    float wavelength = wave.w;
+    float speed = sqrt(9.81 * 2.0 * PI / wavelength);
+    float2 direction = normalize(float2(wave.x, wave.y));
+    float frequency = 2.0 * PI / wavelength;
+    float phase = speed * frequency * time;
+
+    float theta = frequency * dot(direction, worldPos.xz) + phase;
+    float S = sin(theta);
+    float C = cos(theta);
+    float qi = 1.0 / (1.0 + steepness * steepness * wavelength * frequency);
+
+    float2 displacement2D = qi * steepness * wavelength * direction * C;
+    float displacementY = qi * steepness * wavelength * S;
+
+    float wa = frequency * wavelength;
+    float S_wa = sin(wa * time);
+    float C_wa = cos(wa * time);
+
+    tangent = normalize(float3(
+        1.0 - steepness * direction.x * direction.x * (S * frequency * qi),
+        direction.x * frequency * displacementY,
+        -steepness * direction.x * direction.y * (S * frequency * qi)
+    ));
+
+    binormal = normalize(float3(
+        -steepness * direction.x * direction.y * (S * frequency * qi),
+        direction.y * frequency * displacementY,
+        1.0 - steepness * direction.y * direction.y * (S * frequency * qi)
+    ));
+
+    return float3(displacement2D.x, displacementY, displacement2D.y);
+}
+
+float3 GerstnerWaves(
+    float4 wave0, float4 wave1, float4 wave2, float4 wave3,
+    float3 worldPos, float time,
+    out float3 worldNormal,
+    out float3 worldTangent,
+    out float3 worldBinormal
+)
+{
+    float3 t = float3(0,0,0);
+    float3 b = float3(0,0,0);
+    float3 p = float3(0,0,0);
+
+    p += GerstnerWave(wave0, worldPos, time, t, b);
+    p += GerstnerWave(wave1, worldPos, time, t, b);
+    p += GerstnerWave(wave2, worldPos, time, t, b);
+    p += GerstnerWave(wave3, worldPos, time, t, b);
+
+    worldTangent = normalize(t);
+    worldBinormal = normalize(b);
+    worldNormal = normalize(cross(worldBinormal, worldTangent));
+
+    return p;
+}
+
+float3 SimpleSineWaves(
+    float2 waveDir1, float amplitude1, float frequency1, float speed1,
+    float2 waveDir2, float amplitude2, float frequency2, float speed2,
+    float3 worldPos, float time
+)
+{
+    float d1 = dot(normalize(waveDir1), worldPos.xz);
+    float d2 = dot(normalize(waveDir2), worldPos.xz);
+
+    float y = amplitude1 * sin(d1 * frequency1 + time * speed1)
+            + amplitude2 * sin(d2 * frequency2 + time * speed2);
+
+    return float3(0, y, 0);
+}
+
+float3 ShaderToyWaves(float3 worldPos, float time)
+{
+    float2 uv = worldPos.xz * 0.1;
+    float2 uv1 = uv + float2(time * 0.05, time * 0.03);
+    float2 uv2 = uv + float2(time * -0.04, time * 0.06);
+    float2 uv3 = uv + float2(time * 0.07, time * -0.02);
+
+    float w1 = sin(uv1.x * 3.0 + uv1.y * 2.0) * 0.5 + 0.5;
+    float w2 = sin(uv2.x * 2.5 + uv2.y * 3.5) * 0.5 + 0.5;
+    float w3 = sin(uv3.x * 4.0 + uv3.y * 1.5) * 0.5 + 0.5;
+
+    float height = (w1 * 0.4 + w2 * 0.3 + w3 * 0.3) * 50.0;
+    return float3(0, height, 0);
+}

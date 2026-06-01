@@ -1,0 +1,45 @@
+float3 WaterBaseColor(float depth, float3 shallowColor, float3 deepColor, float depthMax)
+{
+    float lerpFactor = saturate(depth / depthMax);
+    return lerp(shallowColor, deepColor, lerpFactor);
+}
+
+float FoamFactor(float3 worldPos, float time, float3 waveNormal, float waveHeight)
+{
+    float2 uv = worldPos.xz * 0.2 + time * 0.02;
+    float foam1 = sin(uv.x * 12.0 + uv.y * 8.0 + time * 2.0) * 0.5 + 0.5;
+    float foam2 = sin(uv.x * 8.0 - uv.y * 12.0 + time * 1.5) * 0.5 + 0.5;
+    float foam = (foam1 * 0.6 + foam2 * 0.4);
+
+    float waveMask = saturate(1.0 - abs(waveHeight) * 0.1);
+    foam *= waveMask;
+
+    float shoreMask = 1.0 - saturate(dot(waveNormal, float3(0,1,0)));
+    foam *= shoreMask * 2.0;
+
+    return saturate(foam);
+}
+
+float3 WaterSpecular(float3 viewDir, float3 lightDir, float3 normal, float roughness, float3 specColor)
+{
+    float3 halfVec = normalize(viewDir + lightDir);
+    float NdotH = saturate(dot(normal, halfVec));
+    float spec = pow(NdotH, 1.0 / (roughness * roughness + 0.0001));
+    return specColor * spec;
+}
+
+float3 WaterRefraction(float3 sceneColor, float3 normalWS, float3 viewDirWS, float refractionStrength)
+{
+    float2 refractionOffset = normalWS.xz * refractionStrength * 0.1;
+    return sceneColor; // Simplified; actual implementation samples scene color with offset
+}
+
+float2 FlowUV(float2 uv, float2 flowDir, float time, float speed, float tiling)
+{
+    float phase = frac(time * speed);
+    float2 uvA = uv * tiling + flowDir * phase;
+    float2 uvB = uv * tiling + flowDir * (phase - 1.0);
+    float blend = abs(0.5 - phase) * 2.0;
+
+    return lerp(uvA, uvB, blend);
+}
