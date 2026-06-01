@@ -17,6 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShipUpgraded, int32, NewLevel);
 // Предварительное объявление классов
 class AFisherman;
 class AShip;
+class UFishNotificationManagerWidget;
 
 UCLASS()
 class MARINEMONOPOLIST_API AGameManager : public AActor 
@@ -66,6 +67,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game Manager")
 	AFisherman* GetFisherman() const { return Fisherman; }
     
+	// Получить менеджер уведомлений о рыбе
+	UFUNCTION(BlueprintCallable, Category = "Fish Notification")
+	UFishNotificationManagerWidget* GetFishNotificationManager() const { return FishNotificationManager; }
+
 	// Событие изменения денег (можно подписаться в Blueprint)
 	UPROPERTY(BlueprintAssignable, Category = "Game Manager")
 	FOnMoneyChanged OnMoneyChanged;
@@ -110,6 +115,14 @@ private:
 	// Классы для спавна
 	UPROPERTY(EditAnywhere, Category = "Game Manager")
 	TSubclassOf<AFisherman> FishermanClass;
+
+	// Класс виджета менеджера уведомлений
+	UPROPERTY(EditAnywhere, Category = "Fish Notification")
+	TSubclassOf<UFishNotificationManagerWidget> FishNotificationManagerWidgetClass;
+
+	// Экземпляр менеджера уведомлений
+	UPROPERTY()
+	TObjectPtr<UFishNotificationManagerWidget> FishNotificationManager;
     
 	UPROPERTY(EditAnywhere, Category = "Game Manager")
 	TSubclassOf<AShip> ShipClass;
@@ -117,6 +130,16 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Game Manager")
 	TSubclassOf<AFishingNet> FishingNetClass;
     
+	// Создать виджет менеджера уведомлений
+	void CreateFishNotificationManager();
+
+	// Обработчики поимки рыбы
+	UFUNCTION()
+	void OnFishermanCatchesFish(FFishData FishData);
+
+	UFUNCTION()
+	void OnNetCatchesFish(FFishData FishData);
+
 	// Создать корабль
 	void CreateShip();
     

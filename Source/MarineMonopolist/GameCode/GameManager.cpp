@@ -1,6 +1,7 @@
 #include "GameManager.h"
 #include "Fisherman.h"
 #include "Ship.h"
+#include "FishNotificationManagerWidget.h"
 #include "Engine/World.h"
 
 AGameManager* AGameManager::Instance = nullptr;
@@ -33,13 +34,22 @@ void AGameManager::InitializeGame()
     
 	// Создаем корабль
 	CreateShip();
-    
+	
 	// Создаем рыбака
 	CreateFisherman();
-    
+	
 	// Размещаем рыбака на корабле
 	PlaceFishermanOnShip();
-    
+	
+	// Создаём менеджер уведомлений
+	CreateFishNotificationManager();
+	
+	// Подписываемся на поимку рыбы рыбаком
+	if (Fisherman && FishNotificationManager)
+	{
+		Fisherman->OnFishermanFishCaughtFull.AddDynamic(this, &AGameManager::OnFishermanCatchesFish);
+	}
+	
 	// Вызываем событие изменения денег (чтобы UI обновился с начальными деньгами)
 	BroadcastMoneyChanged();
     
@@ -235,7 +245,13 @@ AFishingNet* AGameManager::BuyNet()
         
 		// Добавляем сеть в массив
 		FishingNets.Add(NewNet);
-        
+		
+		// Подписываемся на поимку рыбы сетью
+		if (FishNotificationManager)
+		{
+			NewNet->OnNetFishCaught.AddDynamic(this, &AGameManager::OnNetCatchesFish);
+		}
+		
 		// Вызываем событие покупки сети
 		BroadcastNetPurchased(NewNet);
         
@@ -299,4 +315,42 @@ void AGameManager::BroadcastShipUpgraded(int32 NewLevel)
 {
 	// Вызываем событие Blueprint
 	OnShipUpgraded.Broadcast(NewLevel);
+}
+
+void AGameManager::CreateFishNotificationManager()
+{
+	if (!FishNotificationManagerWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FishNotificationManagerWidgetClass not set in GameManager!"));
+		return;
+	}
+
+	FishNotificationManager = CreateWidget<UFishNotificationManagerWidget>(
+		GetWorld(),
+		FishNotificationManagerWidgetClass
+	);
+
+	if (FishNotificationManager)
+	{
+		FishNotificationManager->AddToViewport(100);
+		UE_LOG(LogTemp, Log, TEXT("Fish notification manager created and added to viewport"));
+	}
+}
+
+void AGameManager::OnFishermanCatchesFish(FFishData FishData)
+{
+	UE_LOG(LogTemp, Verbose, TEXT("GameManager: fisherman caught fish '%s', forwarding to notification manager"), *FishData.FishName);
+	if (FishNotificationManager)
+	{
+		FishNotificationManager->AddNotification(FishData);
+	}
+}
+
+void AGameManager::OnNetCatchesFish(FFishData FishData)
+{
+	UE_LOG(LogTemp, Verbose, TEXT("GameManager: net caught fish '%s', forwarding to notification manager"), *FishData.FishName);
+	if (FishNotificationManager)
+	{
+		FishNotificationManager->AddNotification(FishData);
+	}
 }

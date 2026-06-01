@@ -6,6 +6,8 @@
 #include "FishData.h"
 #include "FishingNet.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetFishCaught, FFishData, FishData);
+
 UCLASS()
 class MARINEMONOPOLIST_API AFishingNet : public AActor
 {
@@ -55,6 +57,10 @@ public:
 	// Получить максимальную вместимость сети
 	UFUNCTION(BlueprintCallable, Category = "Fishing Net")
 	int32 GetMaxCapacity() const { return 2 + NetLevel; }
+
+	// Событие поимки рыбы сетью
+	UPROPERTY(BlueprintAssignable, Category = "Fishing Net")
+	FOnNetFishCaught OnNetFishCaught;
     
 private:
 	// Интервал между ловлей рыбы (в секундах)

@@ -75,6 +75,7 @@ void AFisherman::CatchFish()
         
         // Вызываем событие поимки рыбы для обновления UI
         OnFishCaught.Broadcast(FishData->FishID, FishData->FishName);
+        OnFishermanFishCaughtFull.Broadcast(*FishData);
         
         // Получаем гейм-менеджер и добавляем деньги
         AGameManager* GameManager = AGameManager::GetInstance();

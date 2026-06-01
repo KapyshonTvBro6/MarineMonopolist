@@ -134,7 +134,7 @@ void AFishingNet::CollectAllFish()
         }
     }
     
-    // Считаем общую стоимость
+    // Считаем общую стоимость и отправляем уведомления
     int32 TotalValue = 0;
     
     for (int32 FishID : CaughtFishIDs)
@@ -143,6 +143,7 @@ void AFishingNet::CollectAllFish()
         if (FoundFish && *FoundFish)
         {
             TotalValue += (*FoundFish)->Price;
+            OnNetFishCaught.Broadcast(**FoundFish);
             UE_LOG(LogTemp, Verbose, TEXT("Selling fish ID: %d for %d money"), FishID, (*FoundFish)->Price);
         }
     }

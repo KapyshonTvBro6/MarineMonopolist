@@ -8,6 +8,7 @@
 
 // Делегат для события поимки рыбы
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFishCaught, int32, FishID, const FString&, FishName);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFishermanFishCaughtFull, FFishData, FishData);
 
 UCLASS()
 class MARINEMONOPOLIST_API AFisherman : public APawn
@@ -37,6 +38,10 @@ public:
 	// Событие поимки рыбы (для обновления UI)
 	UPROPERTY(BlueprintAssignable, Category = "Fishing")
 	FOnFishCaught OnFishCaught;
+
+	// Событие поимки рыбы с полными данными (для уведомлений)
+	UPROPERTY(BlueprintAssignable, Category = "Fishing")
+	FOnFishermanFishCaughtFull OnFishermanFishCaughtFull;
     
 	// Получить текущее время ловли
 	UFUNCTION(BlueprintCallable, Category = "Fishing")
