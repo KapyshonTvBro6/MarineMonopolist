@@ -1,356 +1,386 @@
 #include "GameManager.h"
 #include "Fisherman.h"
 #include "Ship.h"
-#include "FishNotificationManagerWidget.h"
+#include "FishingNet.h"
+#include "NightBaitDevice.h"
+#include "DayNightManagerComponent.h"
+#include "UpgradeManagerComponent.h"
+#include "GameUIWidget.h"
 #include "Engine/World.h"
 
 AGameManager* AGameManager::Instance = nullptr;
 
 AGameManager::AGameManager()
 {
-	PrimaryActorTick.bCanEverTick = false;
-	Money = 0; // Начальные деньги для тестирования
-	Fisherman = nullptr;
-	CurrentShip = nullptr;
+    PrimaryActorTick.bCanEverTick = false;
+    Money = 0;
+    Fisherman = nullptr;
+    CurrentShip = nullptr;
+    CurrentNet = nullptr;
+    NightBaitDevice = nullptr;
+
+    DayNightManager = CreateDefaultSubobject<UDayNightManagerComponent>(TEXT("DayNightManager"));
+    UpgradeManager = CreateDefaultSubobject<UUpgradeManagerComponent>(TEXT("UpgradeManager"));
 }
 
 void AGameManager::BeginPlay()
 {
-	Super::BeginPlay();
-	Instance = this;
-    
-	// Инициализируем игру
-	InitializeGame();
+    Super::BeginPlay();
+    Instance = this;
+    InitializeGame();
 }
 
 AGameManager* AGameManager::GetInstance()
 {
-	return Instance;
+    return Instance;
 }
 
 void AGameManager::InitializeGame()
 {
-	UE_LOG(LogTemp, Log, TEXT("Initializing game..."));
-    
-	// Создаем корабль
-	CreateShip();
-	
-	// Создаем рыбака
-	CreateFisherman();
-	
-	// Размещаем рыбака на корабле
-	PlaceFishermanOnShip();
-	
-	// Создаём менеджер уведомлений
-	CreateFishNotificationManager();
-	
-	// Подписываемся на поимку рыбы рыбаком
-	if (Fisherman && FishNotificationManager)
-	{
-		Fisherman->OnFishermanFishCaughtFull.AddDynamic(this, &AGameManager::OnFishermanCatchesFish);
-	}
-	
-	// Вызываем событие изменения денег (чтобы UI обновился с начальными деньгами)
-	BroadcastMoneyChanged();
-    
-	UE_LOG(LogTemp, Log, TEXT("Game initialized. Money: %d"), Money);
+    UE_LOG(LogTemp, Log, TEXT("Initializing game..."));
+
+    CreateShip();
+    CreateFisherman();
+    PlaceFishermanOnShip();
+    CreateGameUIWidget();
+
+    if (Fisherman && GameUIWidget)
+    {
+        Fisherman->OnFishermanFishCaughtFull.AddDynamic(this, &AGameManager::OnFishermanCatchesFish);
+    }
+
+    BroadcastMoneyChanged();
+    UE_LOG(LogTemp, Log, TEXT("Game initialized. Money: %d"), Money);
 }
 
 void AGameManager::CreateShip()
 {
-	if (!ShipClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("ShipClass not set in GameManager!"));
-		return;
-	}
-    
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogTemp, Error, TEXT("World is null!"));
-		return;
-	}
-    
-	// Спавним корабль
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
-	FVector SpawnLocation = FVector(0.0f, 0.0f, 0.0f);
-	FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
-    
-	CurrentShip = World->SpawnActor<AShip>(ShipClass, SpawnLocation, SpawnRotation, SpawnParams);
-    
-	if (CurrentShip)
-	{
-		UE_LOG(LogTemp, Log, TEXT("Ship created successfully"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create ship!"));
-	}
+    if (!ShipClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("ShipClass not set in GameManager!"));
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    CurrentShip = World->SpawnActor<AShip>(ShipClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+    if (CurrentShip)
+    {
+        CurrentShip->SetShipMesh(1);
+        UE_LOG(LogTemp, Log, TEXT("Ship created successfully"));
+    }
 }
 
 void AGameManager::CreateFisherman()
 {
-	if (!FishermanClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("FishermanClass not set in GameManager!"));
-		return;
-	}
-    
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogTemp, Error, TEXT("World is null!"));
-		return;
-	}
-    
-	// Спавним рыбака
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
-	// Временная позиция, потом переместим на корабль
-	FVector SpawnLocation = FVector(100.0f, 0.0f, 100.0f);
-	FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
-    
-	Fisherman = World->SpawnActor<AFisherman>(FishermanClass, SpawnLocation, SpawnRotation, SpawnParams);
-    
-	if (Fisherman)
-	{
-		UE_LOG(LogTemp, Log, TEXT("Fisherman created successfully"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create fisherman!"));
-	}
+    if (!FishermanClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("FishermanClass not set in GameManager!"));
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    Fisherman = World->SpawnActor<AFisherman>(FishermanClass, FVector(100.0f, 0.0f, 100.0f), FRotator::ZeroRotator, SpawnParams);
+
+    if (Fisherman)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Fisherman created successfully"));
+    }
 }
 
 void AGameManager::PlaceFishermanOnShip()
 {
-	if (!CurrentShip || !Fisherman)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Cannot place fisherman: ship or fisherman is null!"));
-		return;
-	}
-    
-	// Получаем точку для рыбака на корабле
-	USceneComponent* FishermanPoint = CurrentShip->GetFishermanPoint();
-	if (!FishermanPoint)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Ship has no fisherman point!"));
-		return;
-	}
-    
-	// Прикрепляем рыбака к точке на корабле
-	Fisherman->AttachToComponent(FishermanPoint, FAttachmentTransformRules::SnapToTargetIncludingScale);
-	Fisherman->SetActorRelativeLocation(FVector::ZeroVector);
-	Fisherman->SetActorRelativeRotation(FRotator::ZeroRotator);
-    
-	UE_LOG(LogTemp, Log, TEXT("Fisherman placed on ship"));
+    if (!CurrentShip || !Fisherman)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Cannot place fisherman: ship or fisherman is null!"));
+        return;
+    }
+
+    USceneComponent* FishermanPoint = CurrentShip->GetFishermanPoint();
+    if (!FishermanPoint) return;
+
+    Fisherman->AttachToComponent(FishermanPoint, FAttachmentTransformRules::SnapToTargetIncludingScale);
+    Fisherman->SetActorRelativeLocation(FVector::ZeroVector);
+    Fisherman->SetActorRelativeRotation(FRotator::ZeroRotator);
+}
+
+void AGameManager::SpawnNet()
+{
+    if (!FishingNetClass || !CurrentShip)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Cannot spawn net: missing class or ship"));
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    CurrentNet = World->SpawnActor<AFishingNet>(FishingNetClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+    if (CurrentNet)
+    {
+        CurrentShip->AttachNet(CurrentNet);
+
+        UDataTable* NetTable = DayNightManager ? DayNightManager->GetDayFishTable() : nullptr;
+        if (!NetTable && Fisherman)
+        {
+            NetTable = Fisherman->GetFishDataTable();
+        }
+        if (NetTable)
+        {
+            CurrentNet->SetFishDataTable(NetTable);
+            UE_LOG(LogTemp, Log, TEXT("Net FishDataTable set: %s"), *NetTable->GetName());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Net FishDataTable is NULL (no DayFishTable or Fisherman table)!"));
+        }
+
+        CurrentNet->SetCatchInterval(UpgradeManager->GetNetInterval());
+        CurrentNet->SetCatchChanceMultiplier(UpgradeManager->GetNetCatchChanceMultiplier());
+
+        UStaticMesh* NetMesh = CurrentShip->GetNetMeshForLevel(UpgradeManager->GetShipLevel());
+        if (NetMesh)
+        {
+            CurrentNet->SetNetMesh(NetMesh);
+        }
+
+        CurrentNet->OnNetFishCaught.AddDynamic(this, &AGameManager::OnNetCatchesFish);
+        CurrentNet->StartFishing();
+
+        UE_LOG(LogTemp, Log, TEXT("Net spawned and attached to ship"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to spawn net!"));
+    }
+}
+
+void AGameManager::SpawnNightBaitDevice()
+{
+    if (!NightBaitDeviceClass || !CurrentShip) return;
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    NightBaitDevice = World->SpawnActor<ANightBaitDevice>(NightBaitDeviceClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+    if (NightBaitDevice && CurrentShip)
+    {
+        CurrentShip->AttachNightBait(NightBaitDevice);
+        NightBaitDevice->SetLevel(0);
+        UE_LOG(LogTemp, Log, TEXT("Night bait device spawned on ship"));
+    }
 }
 
 void AGameManager::AddMoney(int32 Amount)
 {
-	Money += Amount;
-	UE_LOG(LogTemp, Log, TEXT("Added %d money. Total: %d"), Amount, Money);
-    
-	// Вызываем событие изменения денег
-	BroadcastMoneyChanged();
+    Money += Amount;
+    BroadcastMoneyChanged();
 }
 
 bool AGameManager::SpendMoney(int32 Amount)
 {
-	if (Money < Amount)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Not enough money to spend %d! Have: %d"), Amount, Money);
-		return false;
-	}
-    
-	Money -= Amount;
-	UE_LOG(LogTemp, Log, TEXT("Spent %d money. Remaining: %d"), Amount, Money);
-    
-	// Вызываем событие изменения денег
-	BroadcastMoneyChanged();
-    
-	return true;
+    if (Money < Amount)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Not enough money! Need: %d, Have: %d"), Amount, Money);
+        return false;
+    }
+
+    Money -= Amount;
+    BroadcastMoneyChanged();
+    return true;
 }
 
 int32 AGameManager::GetMoney() const
 {
-	return Money;
+    return Money;
 }
 
-AFishingNet* AGameManager::BuyNet()
+UDataTable* AGameManager::GetActiveFishTable() const
 {
-	// Проверяем, достаточно ли денег
-	if (Money < NetCost)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Not enough money to buy net! Need: %d, Have: %d"), NetCost, Money);
-		return nullptr;
-	}
-    
-	// Проверяем, есть ли корабль
-	if (!CurrentShip)
-	{
-		UE_LOG(LogTemp, Error, TEXT("No ship to attach net to!"));
-		return nullptr;
-	}
-    
-	// Проверяем, есть ли свободные места для сетей
-	if (CurrentShip->GetNetCount() >= CurrentShip->GetMaxNets())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Ship has no available net points!"));
-		return nullptr;
-	}
-    
-	// Проверяем класс сети
-	if (!FishingNetClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("FishingNetClass not set in GameManager!"));
-		return nullptr;
-	}
-    
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogTemp, Error, TEXT("World is null!"));
-		return nullptr;
-	}
-    
-	// Спавним сеть
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    
-	// Временная позиция, потом переместим на корабль
-	FVector SpawnLocation = FVector(0.0f, 0.0f, 50.0f);
-	FRotator SpawnRotation = FRotator(0.0f, 0.0f, 0.0f);
-    
-	AFishingNet* NewNet = World->SpawnActor<AFishingNet>(FishingNetClass, SpawnLocation, SpawnRotation, SpawnParams);
-    
-	if (NewNet)
-	{
-		// Снимаем деньги за покупку
-		if (!SpendMoney(NetCost))
-		{
-			// Если не удалось потратить деньги, уничтожаем сеть и возвращаем nullptr
-			NewNet->Destroy();
-			return nullptr;
-		}
-        
-		// Прикрепляем сеть к кораблю
-		CurrentShip->AttachNet(NewNet);
-        
-		// Добавляем сеть в массив
-		FishingNets.Add(NewNet);
-		
-		// Подписываемся на поимку рыбы сетью
-		if (FishNotificationManager)
-		{
-			NewNet->OnNetFishCaught.AddDynamic(this, &AGameManager::OnNetCatchesFish);
-		}
-		
-		// Вызываем событие покупки сети
-		BroadcastNetPurchased(NewNet);
-        
-		UE_LOG(LogTemp, Log, TEXT("Net created and attached to ship. Total nets: %d"), FishingNets.Num());
-		return NewNet;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create net!"));
-		return nullptr;
-	}
+    if (!DayNightManager) return nullptr;
+
+    if (DayNightManager->IsNight())
+    {
+        float NightChance = DayNightManager->GetBaseNightFishChance();
+
+        if (UpgradeManager && UpgradeManager->GetNightBaitLevel() > 0)
+        {
+            NightChance += UpgradeManager->GetNightBaitChanceBonus();
+        }
+
+        NightChance = FMath::Clamp(NightChance, 0.0f, 1.0f);
+
+        if (FMath::FRand() <= NightChance)
+        {
+            UDataTable* NightTable = DayNightManager->GetNightFishTable();
+            if (IsValid(NightTable) && NightTable->GetRowStruct())
+            {
+                return NightTable;
+            }
+        }
+    }
+
+    UDataTable* DayTable = DayNightManager->GetDayFishTable();
+    if (IsValid(DayTable) && DayTable->GetRowStruct())
+    {
+        return DayTable;
+    }
+
+    return nullptr;
+}
+
+bool AGameManager::UpgradeRod()
+{
+    if (!UpgradeManager || !UpgradeManager->CanUpgradeRod()) return false;
+
+    int32 Cost = UpgradeManager->GetRodUpgradeCost();
+    if (Cost < 0 || !SpendMoney(Cost)) return false;
+
+    UpgradeManager->UpgradeRod();
+    return true;
+}
+
+bool AGameManager::UpgradeNet()
+{
+    if (!UpgradeManager || !UpgradeManager->CanUpgradeNet()) return false;
+
+    int32 Cost = UpgradeManager->GetNetUpgradeCost();
+    if (Cost < 0 || !SpendMoney(Cost)) return false;
+
+    int32 OldLevel = UpgradeManager->GetNetLevel();
+    UpgradeManager->UpgradeNet();
+    int32 NewLevel = UpgradeManager->GetNetLevel();
+
+    if (OldLevel == 0 && NewLevel == 1)
+    {
+        SpawnNet();
+    }
+    else if (CurrentNet)
+    {
+        CurrentNet->SetCatchInterval(UpgradeManager->GetNetInterval());
+        CurrentNet->SetCatchChanceMultiplier(UpgradeManager->GetNetCatchChanceMultiplier());
+    }
+
+    return true;
+}
+
+bool AGameManager::UpgradeNightBait()
+{
+    if (!UpgradeManager || !UpgradeManager->CanUpgradeNightBait()) return false;
+
+    int32 Cost = UpgradeManager->GetNightBaitUpgradeCost();
+    if (Cost < 0 || !SpendMoney(Cost)) return false;
+
+    UpgradeManager->UpgradeNightBait();
+
+    if (NightBaitDevice)
+    {
+        NightBaitDevice->SetLevel(UpgradeManager->GetNightBaitLevel());
+    }
+
+    return true;
 }
 
 bool AGameManager::UpgradeShip()
 {
-	// Используем SpendMoney для проверки и списания денег
-	if (SpendMoney(ShipUpgradeCost) == false)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Not enough money to upgrade ship! Need: %d"), ShipUpgradeCost);
-		return false;
-	}
-    
-	// Проверяем, есть ли корабль
-	if (!CurrentShip)
-	{
-		UE_LOG(LogTemp, Error, TEXT("No ship to upgrade!"));
-		// Возвращаем деньги
-		Money += ShipUpgradeCost;
-		BroadcastMoneyChanged();
-		return false;
-	}
-    
-	// Вызываем метод улучшения корабля
-	CurrentShip->Upgrade();
-    
-	// Получаем новый уровень корабля
-	int32 NewLevel = CurrentShip->GetShipLevel();
-    
-	// Вызываем событие
-	BroadcastShipUpgraded(NewLevel);
-    
-	UE_LOG(LogTemp, Log, TEXT("Ship upgraded to level %d. Max nets: %d"), 
-		NewLevel, CurrentShip->GetMaxNets());
-    
-	return true;
+    if (!UpgradeManager || !UpgradeManager->CanUpgradeShip()) return false;
+
+    int32 Cost = UpgradeManager->GetShipUpgradeCost();
+    if (Cost < 0 || !SpendMoney(Cost)) return false;
+
+    int32 OldLevel = UpgradeManager->GetShipLevel();
+    UpgradeManager->UpgradeShip();
+    int32 NewLevel = UpgradeManager->GetShipLevel();
+
+    if (CurrentShip)
+    {
+        CurrentShip->SetShipMesh(NewLevel);
+    }
+
+    if (OldLevel == 1 && NewLevel == 2)
+    {
+        if (CurrentShip) CurrentShip->RemoveNet();
+        if (CurrentNet)
+        {
+            CurrentNet->Destroy();
+            CurrentNet = nullptr;
+        }
+        UpgradeManager->ResetNetLevel(0);
+
+        SpawnNightBaitDevice();
+    }
+    else if (OldLevel == 2 && NewLevel == 3)
+    {
+        if (CurrentShip) CurrentShip->RemoveNet();
+        if (CurrentNet)
+        {
+            CurrentNet->Destroy();
+            CurrentNet = nullptr;
+        }
+        UpgradeManager->ResetNetLevel(0);
+    }
+
+    return true;
 }
 
 void AGameManager::BroadcastMoneyChanged()
 {
-	// Вызываем событие Blueprint
-	OnMoneyChanged.Broadcast(Money);
+    OnMoneyChanged.Broadcast(Money);
 }
 
-void AGameManager::BroadcastNetPurchased(AFishingNet* Net)
+void AGameManager::CreateGameUIWidget()
 {
-	// Вызываем событие Blueprint
-	OnNetPurchased.Broadcast(Net);
-}
+    if (!GameUIWidgetClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("GameUIWidgetClass not set in GameManager!"));
+        return;
+    }
 
-void AGameManager::BroadcastShipUpgraded(int32 NewLevel)
-{
-	// Вызываем событие Blueprint
-	OnShipUpgraded.Broadcast(NewLevel);
-}
+    GameUIWidget = CreateWidget<UGameUIWidget>(
+        GetWorld(),
+        GameUIWidgetClass
+    );
 
-void AGameManager::CreateFishNotificationManager()
-{
-	if (!FishNotificationManagerWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("FishNotificationManagerWidgetClass not set in GameManager!"));
-		return;
-	}
-
-	FishNotificationManager = CreateWidget<UFishNotificationManagerWidget>(
-		GetWorld(),
-		FishNotificationManagerWidgetClass
-	);
-
-	if (FishNotificationManager)
-	{
-		FishNotificationManager->AddToViewport(100);
-		UE_LOG(LogTemp, Log, TEXT("Fish notification manager created and added to viewport"));
-	}
+    if (GameUIWidget)
+    {
+        GameUIWidget->AddToViewport(100);
+    }
 }
 
 void AGameManager::OnFishermanCatchesFish(FFishData FishData)
 {
-	UE_LOG(LogTemp, Verbose, TEXT("GameManager: fisherman caught fish '%s', forwarding to notification manager"), *FishData.FishName);
-	if (FishNotificationManager)
-	{
-		FishNotificationManager->AddNotification(FishData);
-	}
+    if (GameUIWidget)
+    {
+        GameUIWidget->AddFishNotification(FishData);
+    }
 }
 
 void AGameManager::OnNetCatchesFish(FFishData FishData)
 {
-	UE_LOG(LogTemp, Verbose, TEXT("GameManager: net caught fish '%s', forwarding to notification manager"), *FishData.FishName);
-	if (FishNotificationManager)
-	{
-		FishNotificationManager->AddNotification(FishData);
-	}
+    if (GameUIWidget)
+    {
+        GameUIWidget->AddFishNotification(FishData);
+    }
 }

@@ -1,165 +1,125 @@
 #include "Ship.h"
 #include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "FishingNet.h"
+#include "NightBaitDevice.h"
 
 AShip::AShip()
 {
-	PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = true;
 
-	USceneComponent* RootSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-	RootComponent = RootSceneComponent;
+    USceneComponent* RootSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+    RootComponent = RootSceneComponent;
 
-	CreateAttachmentPoints();
+    ShipMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShipMeshComponent"));
+    ShipMeshComponent->SetupAttachment(RootComponent);
+
+    CreateAttachmentPoints();
 }
 
 void AShip::BeginPlay()
 {
-	Super::BeginPlay();
-	BaseWaterZ = GetActorLocation().Z;
+    Super::BeginPlay();
+    BaseWaterZ = GetActorLocation().Z;
 }
 
 void AShip::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-	if (bFloatOnWaves)
-	{
-		UpdateFloatOnWaves(DeltaTime);
-	}
+    Super::Tick(DeltaTime);
+    if (bFloatOnWaves)
+    {
+        UpdateFloatOnWaves(DeltaTime);
+    }
 }
 
 void AShip::CreateAttachmentPoints()
 {
-	FishermanPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FishermanPoint"));
-	FishermanPoint->SetupAttachment(RootComponent);
-	FishermanPoint->SetRelativeLocation(FVector(200.0f, 0.0f, 100.0f));
+    FishermanPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FishermanPoint"));
+    FishermanPoint->SetupAttachment(RootComponent);
+    FishermanPoint->SetRelativeLocation(FVector(200.0f, 0.0f, 100.0f));
 
-	SecondFishermanPoint = CreateDefaultSubobject<USceneComponent>(TEXT("SecondFishermanPoint"));
-	SecondFishermanPoint->SetupAttachment(RootComponent);
-	SecondFishermanPoint->SetRelativeLocation(FVector(-200.0f, 0.0f, 100.0f));
+    NetPoint = CreateDefaultSubobject<USceneComponent>(TEXT("NetPoint"));
+    NetPoint->SetupAttachment(RootComponent);
+    NetPoint->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
 
-	for (int32 i = 0; i < MaxNets; i++)
-	{
-		FString PointName = FString::Printf(TEXT("NetPoint_%d"), i);
-		USceneComponent* NetPoint = CreateDefaultSubobject<USceneComponent>(*PointName);
-		NetPoint->SetupAttachment(RootComponent);
-
-		float YOffset = -150.0f + (i * 100.0f);
-		NetPoint->SetRelativeLocation(FVector(0.0f, YOffset, 50.0f));
-
-		NetPoints.Add(NetPoint);
-	}
-}
-
-USceneComponent* AShip::GetAvailableNetPoint()
-{
-	for (int32 i = 0; i < NetPoints.Num(); i++)
-	{
-		if (i < AttachedNets.Num())
-		{
-			if (AttachedNets[i] != nullptr)
-			{
-				continue;
-			}
-		}
-		return NetPoints[i];
-	}
-
-	return nullptr;
+    NightBaitPoint = CreateDefaultSubobject<USceneComponent>(TEXT("NightBaitPoint"));
+    NightBaitPoint->SetupAttachment(RootComponent);
+    NightBaitPoint->SetRelativeLocation(FVector(-150.0f, 0.0f, 80.0f));
 }
 
 void AShip::AttachNet(AActor* NetActor)
 {
-	if (!NetActor)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Trying to attach null net to ship!"));
-		return;
-	}
+    if (!NetActor || !NetPoint)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Trying to attach null net to ship!"));
+        return;
+    }
 
-	USceneComponent* NetPoint = GetAvailableNetPoint();
-	if (!NetPoint)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("No available net points on ship!"));
-		return;
-	}
+    NetActor->AttachToComponent(NetPoint, FAttachmentTransformRules::SnapToTargetIncludingScale);
+    NetActor->SetActorRelativeLocation(FVector::ZeroVector);
+    NetActor->SetActorRelativeRotation(FRotator::ZeroRotator);
 
-	NetActor->AttachToComponent(NetPoint, FAttachmentTransformRules::SnapToTargetIncludingScale);
-	NetActor->SetActorRelativeLocation(FVector::ZeroVector);
-	NetActor->SetActorRelativeRotation(FRotator::ZeroRotator);
-
-	AttachedNets.Add(NetActor);
-
-	UE_LOG(LogTemp, Log, TEXT("Net attached to ship. Total nets: %d"), AttachedNets.Num());
+    UE_LOG(LogTemp, Log, TEXT("Net attached to ship"));
 }
 
-void AShip::Upgrade()
+void AShip::RemoveNet()
 {
-	ShipLevel++;
-	MaxNets = BaseMaxNets + (ShipLevel - 1) * NetsPerLevel;
+    UE_LOG(LogTemp, Log, TEXT("Net point cleared"));
 
-	UE_LOG(LogTemp, Log, TEXT("Ship upgraded to level %d. Max nets: %d"), ShipLevel, MaxNets);
-
-	if (NetPoints.Num() < MaxNets)
-	{
-		int32 NetsToAdd = MaxNets - NetPoints.Num();
-		for (int32 i = 0; i < NetsToAdd; i++)
-		{
-			AddNewNetPoint();
-		}
-	}
+    UE_LOG(LogTemp, Log, TEXT("Net removed from ship"));
 }
 
-void AShip::AddNewNetPoint()
+void AShip::AttachNightBait(AActor* DeviceActor)
 {
-	int32 NewIndex = NetPoints.Num();
-	FString PointName = FString::Printf(TEXT("RuntimeNetPoint_%d"), NewIndex);
+    if (!DeviceActor || !NightBaitPoint)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Trying to attach null night bait device to ship!"));
+        return;
+    }
 
-	USceneComponent* NewNetPoint = CreateNetPointComponent(NewIndex);
+    DeviceActor->AttachToComponent(NightBaitPoint, FAttachmentTransformRules::SnapToTargetIncludingScale);
+    DeviceActor->SetActorRelativeLocation(FVector::ZeroVector);
+    DeviceActor->SetActorRelativeRotation(FRotator::ZeroRotator);
 
-	if (NewNetPoint)
-	{
-		NetPoints.Add(NewNetPoint);
-		UE_LOG(LogTemp, Log, TEXT("Added new net point. Total net points: %d"), NetPoints.Num());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create new net point!"));
-	}
+    UE_LOG(LogTemp, Log, TEXT("Night bait device attached to ship"));
 }
 
-USceneComponent* AShip::CreateNetPointComponent(int32 Index)
+void AShip::SetShipMesh(int32 Level)
 {
-	FString PointName = FString::Printf(TEXT("RuntimeNetPoint_%d"), Index);
+    ShipLevel = FMath::Clamp(Level, 1, ShipMeshes.Num());
 
-	USceneComponent* NewNetPoint = NewObject<USceneComponent>(this, *PointName);
-	if (!NewNetPoint)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create NewObject for net point!"));
-		return nullptr;
-	}
+    if (ShipMeshes.IsValidIndex(ShipLevel - 1) && ShipMeshes[ShipLevel - 1])
+    {
+        ShipMeshComponent->SetStaticMesh(ShipMeshes[ShipLevel - 1]);
+        UE_LOG(LogTemp, Log, TEXT("Ship mesh set to level %d"), ShipLevel);
+    }
+}
 
-	NewNetPoint->SetupAttachment(RootComponent);
-	NewNetPoint->RegisterComponent();
-
-	float YOffset = -150.0f + (Index * 100.0f);
-	NewNetPoint->SetRelativeLocation(FVector(0.0f, YOffset, 50.0f));
-
-	return NewNetPoint;
+UStaticMesh* AShip::GetNetMeshForLevel(int32 Level) const
+{
+    int32 Index = Level - 1;
+    if (NetMeshes.IsValidIndex(Index))
+    {
+        return NetMeshes[Index];
+    }
+    return nullptr;
 }
 
 void AShip::UpdateFloatOnWaves(float DeltaTime)
 {
-	WaveTime += DeltaTime;
+    WaveTime += DeltaTime;
 
-	float BobOffset = FMath::Sin(WaveTime * BobSpeed) * BobAmplitude;
+    float BobOffset = FMath::Sin(WaveTime * BobSpeed) * BobAmplitude;
 
-	FVector NewLoc = GetActorLocation();
-	NewLoc.Z = BaseWaterZ + BobOffset;
-	SetActorLocation(NewLoc);
+    FVector NewLoc = GetActorLocation();
+    NewLoc.Z = BaseWaterZ + BobOffset;
+    SetActorLocation(NewLoc);
 
-	float Pitch = FMath::Sin(WaveTime * PitchSpeed) * PitchAmplitude;
-	float Roll = FMath::Sin(WaveTime * RollSpeed) * RollAmplitude;
+    float Pitch = FMath::Sin(WaveTime * PitchSpeed) * PitchAmplitude;
+    float Roll = FMath::Sin(WaveTime * RollSpeed) * RollAmplitude;
 
-	FRotator ShipRot = GetActorRotation();
-	ShipRot.Pitch = Pitch;
-	ShipRot.Roll = Roll;
-	SetActorRotation(ShipRot);
+    FRotator ShipRot = GetActorRotation();
+    ShipRot.Pitch = Pitch;
+    ShipRot.Roll = Roll;
+    SetActorRotation(ShipRot);
 }

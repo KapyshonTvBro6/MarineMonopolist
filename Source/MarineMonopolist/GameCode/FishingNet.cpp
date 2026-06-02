@@ -1,11 +1,14 @@
 #include "FishingNet.h"
 #include "GameManager.h"
-#include "TimerManager.h"
+#include "Fisherman.h"
+#include "Components/StaticMeshComponent.h"
 
 AFishingNet::AFishingNet()
 {
     PrimaryActorTick.bCanEverTick = true;
-    bIsFishing = false;
+
+    NetMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NetMeshComponent"));
+    RootComponent = NetMeshComponent;
 }
 
 void AFishingNet::BeginPlay()
@@ -17,215 +20,166 @@ void AFishingNet::BeginPlay()
 void AFishingNet::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    if (!bIsFishing) return;
+
+    CurrentCatchTime += DeltaTime;
+
+    if (CurrentCatchTime >= FishingInterval)
+    {
+        CurrentCatchTime = 0.0f;
+
+        if (bPredictedCatchResult)
+        {
+            CatchSingleFish();
+        }
+
+        bPredictedCatchResult = (FMath::FRand() <= CatchChanceMultiplier);
+    }
 }
 
 void AFishingNet::StartFishing()
 {
     if (bIsFishing) return;
-    
     bIsFishing = true;
-    
-    // Запускаем таймер для первой ловли
-    GetWorld()->GetTimerManager().SetTimer(
-        FishingTimerHandle,
-        this,
-        &AFishingNet::OnFishingTimerComplete,
-        FishingInterval,
-        false
-    );
-    
-    UE_LOG(LogTemp, Log, TEXT("Fishing net started. First catch in %f seconds"), FishingInterval);
+    CurrentCatchTime = 0.0f;
+    bPredictedCatchResult = (FMath::FRand() <= CatchChanceMultiplier);
 }
 
 void AFishingNet::StopFishing()
 {
-    if (!bIsFishing) return;
-    
     bIsFishing = false;
-    GetWorld()->GetTimerManager().ClearTimer(FishingTimerHandle);
-    UE_LOG(LogTemp, Log, TEXT("Fishing net stopped"));
-}
-
-void AFishingNet::OnFishingTimerComplete()
-{
-    // Ловим 1 рыбу
-    CatchSingleFish();
-    
-    // Проверяем условие для продолжения ловли
-    if (CaughtFishIDs.Num() < 2 + NetLevel)
-    {
-        // Если сеть не заполнена, запускаем таймер снова
-        GetWorld()->GetTimerManager().SetTimer(
-            FishingTimerHandle,
-            this,
-            &AFishingNet::OnFishingTimerComplete,
-            FishingInterval,
-            false
-        );
-        
-        UE_LOG(LogTemp, Log, TEXT("Fishing net continues. Next catch in %f seconds"), FishingInterval);
-    }
-    else
-    {
-        // Сеть заполнена - останавливаем ловлю
-        bIsFishing = false;
-        UE_LOG(LogTemp, Log, TEXT("Fishing net is full (capacity: %d). Stopping."), 2 + NetLevel);
-    }
-}
-
-void AFishingNet::CatchSingleFish()
-{
-    if (!FishDataTable)
-    {
-        UE_LOG(LogTemp, Error, TEXT("FishDataTable not set in fishing net!"));
-        return;
-    }
-    
-    // Рассчитываем максимальную вместимость сети
-    int32 MaxCapacity = 2 + NetLevel;
-    
-    // Проверяем, есть ли место в сети
-    if (CaughtFishIDs.Num() >= MaxCapacity)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Fishing net is full, cannot catch more fish"));
-        return;
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("Fishing net catching 1 fish"));
-    
-    // Ловим 1 рыбу
-    FFishData* FishData = GetRandomFish();
-    if (FishData)
-    {
-        CaughtFishIDs.Add(FishData->FishID);
-        UE_LOG(LogTemp, Log, TEXT("Fishing net caught fish ID: %d, Name: %s"), 
-            FishData->FishID, *FishData->FishName);
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("Fishing net now contains %d/%d fish"), 
-        CaughtFishIDs.Num(), MaxCapacity);
 }
 
 void AFishingNet::CollectAllFish()
 {
-    if (CaughtFishIDs.Num() == 0)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("No fish to collect in fishing net!"));
-        return;
-    }
-    
-    if (!FishDataTable)
-    {
-        UE_LOG(LogTemp, Error, TEXT("FishDataTable not set in fishing net!"));
-        return;
-    }
-    
-    // Получаем все строки из таблицы для быстрого поиска
-    TArray<FFishData*> AllFish;
-    FishDataTable->GetAllRows<FFishData>(TEXT(""), AllFish);
-    
-    // Создаем карту для быстрого поиска рыбы по ID
-    TMap<int32, FFishData*> FishMap;
-    for (FFishData* Fish : AllFish)
-    {
-        if (Fish)
-        {
-            FishMap.Add(Fish->FishID, Fish);
-        }
-    }
-    
-    // Считаем общую стоимость и отправляем уведомления
-    int32 TotalValue = 0;
-    
-    for (int32 FishID : CaughtFishIDs)
-    {
-        FFishData** FoundFish = FishMap.Find(FishID);
-        if (FoundFish && *FoundFish)
-        {
-            TotalValue += (*FoundFish)->Price;
-            OnNetFishCaught.Broadcast(**FoundFish);
-            UE_LOG(LogTemp, Verbose, TEXT("Selling fish ID: %d for %d money"), FishID, (*FoundFish)->Price);
-        }
-    }
-    
-    // Добавляем деньги
+    if (CaughtFishIDs.Num() == 0) return;
+
+    int32 TotalValue = GetTotalValue();
+
     AGameManager* GameManager = AGameManager::GetInstance();
     if (GameManager)
     {
         GameManager->AddMoney(TotalValue);
-        UE_LOG(LogTemp, Log, TEXT("Collected and sold %d fish for total of %d money"), 
-            CaughtFishIDs.Num(), TotalValue);
     }
-    
-    // Очищаем сеть
-    CaughtFishIDs.Empty();
-    
-    // После сбора начинаем ловлю снова, если она была остановлена
-    if (!bIsFishing)
+
+    TArray<FFishData*> AllFish;
+    if (FishDataTable)
     {
-        StartFishing();
+        FishDataTable->GetAllRows<FFishData>(TEXT(""), AllFish);
+    }
+
+    TMap<int32, FFishData*> FishMap;
+    for (FFishData* Fish : AllFish)
+    {
+        if (Fish) FishMap.Add(Fish->FishID, Fish);
+    }
+
+    for (int32 FishID : CaughtFishIDs)
+    {
+        FFishData** Found = FishMap.Find(FishID);
+        if (Found && *Found)
+        {
+            OnNetFishCaught.Broadcast(**Found);
+        }
+    }
+
+    CaughtFishIDs.Empty();
+    CurrentCatchTime = 0.0f;
+    bPredictedCatchResult = (FMath::FRand() <= CatchChanceMultiplier);
+}
+
+void AFishingNet::SetCatchInterval(float Seconds)
+{
+    FishingInterval = FMath::Max(0.5f, Seconds);
+}
+
+void AFishingNet::SetCatchChanceMultiplier(float Multiplier)
+{
+    CatchChanceMultiplier = FMath::Clamp(Multiplier, 0.0f, 1.0f);
+}
+
+void AFishingNet::SetNetMesh(UStaticMesh* NewMesh)
+{
+    if (NewMesh)
+    {
+        NetMeshComponent->SetStaticMesh(NewMesh);
     }
 }
 
-int32 AFishingNet::GetFishCount() const
+float AFishingNet::GetCatchProgress() const
 {
-    return CaughtFishIDs.Num();
+    if (FishingInterval <= 0.0f) return 0.0f;
+    return FMath::Clamp(CurrentCatchTime / FishingInterval, 0.0f, 1.0f);
 }
 
 int32 AFishingNet::GetTotalValue() const
 {
-    if (!FishDataTable || CaughtFishIDs.Num() == 0) return 0;
-    
-    // Получаем все строки из таблицы
+    if (CaughtFishIDs.Num() == 0) return 0;
+
     TArray<FFishData*> AllFish;
+    if (!FishDataTable) return 0;
     FishDataTable->GetAllRows<FFishData>(TEXT(""), AllFish);
-    
-    // Создаем карту для быстрого поиска
-    TMap<int32, FFishData*> FishMap;
+
+    TMap<int32, int32> FishPriceMap;
     for (FFishData* Fish : AllFish)
     {
-        if (Fish)
-        {
-            FishMap.Add(Fish->FishID, Fish);
-        }
+        if (Fish) FishPriceMap.Add(Fish->FishID, Fish->Price);
     }
-    
-    // Считаем общую стоимость
-    int32 TotalValue = 0;
-    
+
+    int32 Total = 0;
     for (int32 FishID : CaughtFishIDs)
     {
-        FFishData** FoundFish = FishMap.Find(FishID);
-        if (FoundFish && *FoundFish)
-        {
-            TotalValue += (*FoundFish)->Price;
-        }
+        int32* Price = FishPriceMap.Find(FishID);
+        if (Price) Total += *Price;
     }
-    
-    return TotalValue;
+    return Total;
+}
+
+void AFishingNet::CatchSingleFish()
+{
+    FFishData* FishData = GetRandomFish();
+    if (!FishData) return;
+
+    CaughtFishIDs.Add(FishData->FishID);
 }
 
 FFishData* AFishingNet::GetRandomFish()
 {
-    if (!FishDataTable) return nullptr;
-    
-    // Получаем все строки из таблицы
+    UDataTable* ActiveTable = nullptr;
+
+    AGameManager* GM = AGameManager::GetInstance();
+    if (GM)
+    {
+        ActiveTable = GM->GetActiveFishTable();
+    }
+
+    if (!ActiveTable) ActiveTable = FishDataTable;
+
+    if (!IsValid(ActiveTable) && GM && GM->GetFisherman())
+    {
+        ActiveTable = GM->GetFisherman()->GetFishDataTable();
+    }
+
+    if (!IsValid(ActiveTable) || !ActiveTable->GetRowStruct())
+    {
+        UE_LOG(LogTemp, Error, TEXT("FishingNet: invalid fish table!"));
+        return nullptr;
+    }
+
     TArray<FFishData*> AllFish;
-    FishDataTable->GetAllRows<FFishData>(TEXT(""), AllFish);
-    
+    ActiveTable->GetAllRows<FFishData>(TEXT(""), AllFish);
     if (AllFish.Num() == 0) return nullptr;
-    
-    // Рассчитываем общую вероятность
+
     float TotalProbability = 0.0f;
     for (FFishData* Fish : AllFish)
     {
         TotalProbability += Fish->Probability;
     }
-    
-    // Выбираем случайную рыбу на основе вероятностей
+
     float RandomValue = FMath::FRand() * TotalProbability;
     float CumulativeProbability = 0.0f;
-    
+
     for (FFishData* Fish : AllFish)
     {
         CumulativeProbability += Fish->Probability;
@@ -234,6 +188,6 @@ FFishData* AFishingNet::GetRandomFish()
             return Fish;
         }
     }
-    
+
     return AllFish.Last();
 }
