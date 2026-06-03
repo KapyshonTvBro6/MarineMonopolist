@@ -42,7 +42,12 @@ void UGameUIWidget::NativeOnInitialized()
 
     if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
     if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
-    if (DarkOverlay) DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
+    if (DarkOverlay)
+    {
+        DarkOverlay->SetColorAndOpacity(FLinearColor::Black);
+        DarkOverlay->SetRenderOpacity(0.0f);
+        DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
+    }
 
     for (int32 i = 0; i < MaxSlots; i++)
     {
@@ -401,36 +406,79 @@ void UGameUIWidget::OnExitShopClicked()
 
 void UGameUIWidget::EnterShop()
 {
-    if (bIsInShop) return;
-    bIsInShop = true;
-
-    if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Collapsed);
-    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Visible);
-    if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Collapsed);
-    if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Visible);
-    if (DarkOverlay) DarkOverlay->SetVisibility(ESlateVisibility::Visible);
-
-    AGameManager* GM = AGameManager::GetInstance();
-    if (GM)
-    {
-        GM->SetShopMode(true);
-    }
+    if (bIsInShop || FadeState != EShopFadeState::Idle) return;
+    StartFade(true);
 }
 
 void UGameUIWidget::ExitShop()
 {
-    if (!bIsInShop) return;
-    bIsInShop = false;
+    if (!bIsInShop || FadeState != EShopFadeState::Idle) return;
+    StartFade(false);
+}
 
-    if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Visible);
-    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
-    if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Visible);
-    if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
-    if (DarkOverlay) DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
+void UGameUIWidget::StartFade(bool bTargetIsShop)
+{
+    bFadeTargetIsShop = bTargetIsShop;
+    FadeState = EShopFadeState::FadeToBlack;
+    FadeStartTime = GetWorld()->GetTimeSeconds();
 
-    AGameManager* GM = AGameManager::GetInstance();
-    if (GM)
+    if (DarkOverlay)
     {
-        GM->SetShopMode(false);
+        DarkOverlay->SetRenderOpacity(0.0f);
+        DarkOverlay->SetVisibility(ESlateVisibility::Visible);
+    }
+
+    GetWorld()->GetTimerManager().SetTimer(FadeTimerHandle, this, &UGameUIWidget::OnFadeTick, 0.016f, true);
+}
+
+void UGameUIWidget::OnFadeTick()
+{
+    float CurrentTime = GetWorld()->GetTimeSeconds();
+    float Elapsed = CurrentTime - FadeStartTime;
+    float Alpha = FMath::Clamp(Elapsed / FadeDuration, 0.0f, 1.0f);
+
+    switch (FadeState)
+    {
+    case EShopFadeState::FadeToBlack:
+        if (DarkOverlay) DarkOverlay->SetRenderOpacity(Alpha);
+        if (Alpha >= 1.0f)
+        {
+            AGameManager* GM = AGameManager::GetInstance();
+            if (bFadeTargetIsShop)
+            {
+                bIsInShop = true;
+                if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+                if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Visible);
+                if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Collapsed);
+                if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Visible);
+                if (GM) GM->SetShopMode(true);
+            }
+            else
+            {
+                bIsInShop = false;
+                if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Visible);
+                if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+                if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Visible);
+                if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
+                if (GM) GM->SetShopMode(false);
+            }
+
+            FadeState = EShopFadeState::FadeFromBlack;
+            FadeStartTime = CurrentTime;
+        }
+        break;
+
+    case EShopFadeState::FadeFromBlack:
+        if (DarkOverlay) DarkOverlay->SetRenderOpacity(1.0f - Alpha);
+        if (Alpha >= 1.0f)
+        {
+            FadeState = EShopFadeState::Idle;
+            if (DarkOverlay)
+            {
+                DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
+            }
+            GetWorld()->GetTimerManager().ClearTimer(FadeTimerHandle);
+        }
+        break;
     }
 }

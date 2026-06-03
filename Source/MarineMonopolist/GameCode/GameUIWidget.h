@@ -6,7 +6,7 @@
 #include "Components/Button.h"
 #include "Components/ProgressBar.h"
 #include "Components/VerticalBox.h"
-#include "Components/Overlay.h"
+#include "Components/CanvasPanel.h"
 #include "Components/Image.h"
 #include "FishData.h"
 #include "GameUIWidget.generated.h"
@@ -98,7 +98,7 @@ protected:
 
 	// Canvas containers
 	UPROPERTY(meta = (BindWidget))
-	UOverlay* MainOverlay;
+	UCanvasPanel* MainOverlay;
 
 	UPROPERTY(meta = (BindWidget))
 	UWidget* GameCanvas;
@@ -134,16 +134,33 @@ private:
 
 	bool bIsInShop = false;
 
+	enum class EShopFadeState : uint8
+	{
+		Idle,
+		FadeToBlack,
+		FadeFromBlack
+	};
+
+	EShopFadeState FadeState = EShopFadeState::Idle;
+	float FadeStartTime = 0.0f;
+	float FadeDuration = 1.0f;
+	FTimerHandle FadeTimerHandle;
+	bool bFadeTargetIsShop = false;
+
 	void FillSlotsFromQueue();
 	void UpdateSlotWidget(int32 Index, const FFishData* FishData);
 	void EnterShop();
 	void ExitShop();
+	void StartFade(bool bTargetIsShop);
 
 	UFUNCTION()
 	void OnEnterShopClicked();
 
 	UFUNCTION()
 	void OnExitShopClicked();
+
+	UFUNCTION()
+	void OnFadeTick();
 
 	UFUNCTION()
 	void OnMoneyChanged(int32 NewMoney);
