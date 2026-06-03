@@ -7,6 +7,7 @@
 #include "FishNotificationWidget.h"
 #include "TimerManager.h"
 #include "Components/SlateWrapperTypes.h"
+#include "Blueprint/WidgetTree.h"
 
 void UGameUIWidget::NativeOnInitialized()
 {
@@ -39,6 +40,29 @@ void UGameUIWidget::NativeOnInitialized()
 
     if (EnterShopBtn) EnterShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnEnterShopClicked);
     if (ExitShopBtn) ExitShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnExitShopClicked);
+
+    // Fallback for BindWidget — sometimes doesn't restore after editor restart
+    if (WidgetTree)
+    {
+        if (!GameCanvas)
+        {
+            GameCanvas = WidgetTree->FindWidget(TEXT("GameCanvas"));
+            UE_LOG(LogTemp, Warning, TEXT("GameUIWidget: BindWidget GameCanvas was null, FindWidget gave: %s"),
+                GameCanvas ? *GameCanvas->GetName() : TEXT("null"));
+        }
+        if (!ShopCanvas)
+        {
+            ShopCanvas = WidgetTree->FindWidget(TEXT("ShopCanvas"));
+            UE_LOG(LogTemp, Warning, TEXT("GameUIWidget: BindWidget ShopCanvas was null, FindWidget gave: %s"),
+                ShopCanvas ? *ShopCanvas->GetName() : TEXT("null"));
+        }
+        if (!NavigationCanvas)
+        {
+            NavigationCanvas = WidgetTree->FindWidget(TEXT("NavigationCanvas"));
+            UE_LOG(LogTemp, Warning, TEXT("GameUIWidget: BindWidget NavigationCanvas was null, FindWidget gave: %s"),
+                NavigationCanvas ? *NavigationCanvas->GetName() : TEXT("null"));
+        }
+    }
 
     if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
     if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
