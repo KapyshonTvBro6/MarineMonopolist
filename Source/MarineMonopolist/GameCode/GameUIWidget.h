@@ -6,6 +6,8 @@
 #include "Components/Button.h"
 #include "Components/ProgressBar.h"
 #include "Components/VerticalBox.h"
+#include "Components/Overlay.h"
+#include "Components/Image.h"
 #include "FishData.h"
 #include "GameUIWidget.generated.h"
 
@@ -91,26 +93,60 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* ShipCostText;
 
-    UPROPERTY(meta = (BindWidget))
-    UTextBlock* ShipRequirementText;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* ShipRequirementText;
 
-    UPROPERTY(EditAnywhere, Category = "UI")
-    TSubclassOf<UFishNotificationWidget> FishNotificationWidgetClass;
+	// Canvas containers
+	UPROPERTY(meta = (BindWidget))
+	UOverlay* MainOverlay;
+
+	UPROPERTY(meta = (BindWidget))
+	UWidget* GameCanvas;
+
+	UPROPERTY(meta = (BindWidget))
+	UWidget* ShopCanvas;
+
+	UPROPERTY(meta = (BindWidget))
+	UWidget* NavigationCanvas;
+
+	// Navigation buttons
+	UPROPERTY(meta = (BindWidget))
+	UButton* EnterShopBtn;
+
+	UPROPERTY(meta = (BindWidget))
+	UButton* ExitShopBtn;
+
+	// Dark overlay
+	UPROPERTY(meta = (BindWidget))
+	UImage* DarkOverlay;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UFishNotificationWidget> FishNotificationWidgetClass;
 
 private:
-    static constexpr int32 MaxSlots = 4;
+	static constexpr int32 MaxSlots = 4;
 
-    TArray<UFishNotificationWidget*> NotificationSlots;
-    TArray<FFishData> NotificationQueue;
-    float SlotDisplayTimes[MaxSlots] = {0.0f};
-    float AdvanceInterval = 0.5f;
-    FTimerHandle NotificationTimerHandle;
+	TArray<UFishNotificationWidget*> NotificationSlots;
+	TArray<FFishData> NotificationQueue;
+	float SlotDisplayTimes[MaxSlots] = {0.0f};
+	float AdvanceInterval = 0.5f;
+	FTimerHandle NotificationTimerHandle;
 
-    void FillSlotsFromQueue();
-    void UpdateSlotWidget(int32 Index, const FFishData* FishData);
+	bool bIsInShop = false;
 
-    UFUNCTION()
-    void OnMoneyChanged(int32 NewMoney);
+	void FillSlotsFromQueue();
+	void UpdateSlotWidget(int32 Index, const FFishData* FishData);
+	void EnterShop();
+	void ExitShop();
+
+	UFUNCTION()
+	void OnEnterShopClicked();
+
+	UFUNCTION()
+	void OnExitShopClicked();
+
+	UFUNCTION()
+	void OnMoneyChanged(int32 NewMoney);
 
     UFUNCTION()
     void OnDayNightChanged(bool bIsNight);

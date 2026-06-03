@@ -37,6 +37,13 @@ void UGameUIWidget::NativeOnInitialized()
     if (SpeedUpBtn) SpeedUpBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnSpeedUpClicked);
     if (NetCollectBtn) NetCollectBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnNetCollectClicked);
 
+    if (EnterShopBtn) EnterShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnEnterShopClicked);
+    if (ExitShopBtn) ExitShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnExitShopClicked);
+
+    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+    if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
+    if (DarkOverlay) DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
+
     for (int32 i = 0; i < MaxSlots; i++)
     {
         if (FishNotificationWidgetClass && NotificationBox)
@@ -379,5 +386,51 @@ void UGameUIWidget::OnNetCollectClicked()
         Net->CollectAllFish();
         UpdateNetDisplay();
         UpdateBalanceDisplay();
+    }
+}
+
+void UGameUIWidget::OnEnterShopClicked()
+{
+    EnterShop();
+}
+
+void UGameUIWidget::OnExitShopClicked()
+{
+    ExitShop();
+}
+
+void UGameUIWidget::EnterShop()
+{
+    if (bIsInShop) return;
+    bIsInShop = true;
+
+    if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Visible);
+    if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Collapsed);
+    if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Visible);
+    if (DarkOverlay) DarkOverlay->SetVisibility(ESlateVisibility::Visible);
+
+    AGameManager* GM = AGameManager::GetInstance();
+    if (GM)
+    {
+        GM->SetShopMode(true);
+    }
+}
+
+void UGameUIWidget::ExitShop()
+{
+    if (!bIsInShop) return;
+    bIsInShop = false;
+
+    if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Visible);
+    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+    if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Visible);
+    if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
+    if (DarkOverlay) DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
+
+    AGameManager* GM = AGameManager::GetInstance();
+    if (GM)
+    {
+        GM->SetShopMode(false);
     }
 }

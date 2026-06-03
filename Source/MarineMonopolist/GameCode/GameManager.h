@@ -14,6 +14,7 @@ class ANightBaitDevice;
 class UGameUIWidget;
 class UDayNightManagerComponent;
 class UUpgradeManagerComponent;
+class UCameraComponent;
 
 UCLASS()
 class MARINEMONOPOLIST_API AGameManager : public AActor
@@ -71,11 +72,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Game Manager|Upgrades")
     bool UpgradeNightBait();
 
-    UFUNCTION(BlueprintCallable, Category = "Game Manager|Upgrades")
-    bool UpgradeShip();
+	UFUNCTION(BlueprintCallable, Category = "Game Manager|Upgrades")
+	bool UpgradeShip();
 
-    UPROPERTY(BlueprintAssignable, Category = "Game Manager")
-    FOnMoneyChanged OnMoneyChanged;
+	UFUNCTION(BlueprintCallable, Category = "Game Manager|Shop")
+	void SetShopMode(bool bShopMode);
+
+	UFUNCTION(BlueprintCallable, Category = "Game Manager|Shop")
+	bool IsInShopMode() const { return bInShopMode; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Game Manager")
+	FOnMoneyChanged OnMoneyChanged;
 
 protected:
     virtual void BeginPlay() override;
@@ -119,10 +126,27 @@ private:
     UPROPERTY(EditAnywhere, Category = "UI")
     TSubclassOf<UGameUIWidget> GameUIWidgetClass;
 
-    UPROPERTY()
-    TObjectPtr<UGameUIWidget> GameUIWidget;
+	UPROPERTY()
+	TObjectPtr<UGameUIWidget> GameUIWidget;
 
-    void CreateShip();
+	UPROPERTY(VisibleAnywhere, Category = "Camera")
+	TObjectPtr<UCameraComponent> CameraComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	FVector CameraGameLocation;
+
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	FRotator CameraGameRotation;
+
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	FVector CameraShopLocation;
+
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	FRotator CameraShopRotation;
+
+	bool bInShopMode = false;
+
+	void CreateShip();
     void CreateFisherman();
     void PlaceFishermanOnShip();
     void SpawnNet();

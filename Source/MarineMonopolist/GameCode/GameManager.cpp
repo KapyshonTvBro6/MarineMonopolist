@@ -6,7 +6,9 @@
 #include "DayNightManagerComponent.h"
 #include "UpgradeManagerComponent.h"
 #include "GameUIWidget.h"
+#include "Camera/CameraComponent.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 
 AGameManager* AGameManager::Instance = nullptr;
 
@@ -19,8 +21,9 @@ AGameManager::AGameManager()
     CurrentNet = nullptr;
     NightBaitDevice = nullptr;
 
-    DayNightManager = CreateDefaultSubobject<UDayNightManagerComponent>(TEXT("DayNightManager"));
-    UpgradeManager = CreateDefaultSubobject<UUpgradeManagerComponent>(TEXT("UpgradeManager"));
+	DayNightManager = CreateDefaultSubobject<UDayNightManagerComponent>(TEXT("DayNightManager"));
+	UpgradeManager = CreateDefaultSubobject<UUpgradeManagerComponent>(TEXT("UpgradeManager"));
+	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 }
 
 void AGameManager::BeginPlay()
@@ -50,6 +53,15 @@ void AGameManager::InitializeGame()
     }
 
     BroadcastMoneyChanged();
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (PC)
+    {
+        PC->SetViewTarget(this);
+        SetActorLocation(CameraGameLocation);
+        SetActorRotation(CameraGameRotation);
+    }
+
     UE_LOG(LogTemp, Log, TEXT("Game initialized. Money: %d"), Money);
 }
 
@@ -343,6 +355,33 @@ bool AGameManager::UpgradeShip()
     }
 
     return true;
+}
+
+void AGameManager::SetShopMode(bool bShopMode)
+{
+    if (bInShopMode == bShopMode) return;
+    bInShopMode = bShopMode;
+
+    if (bShopMode)
+    {
+        if (Fisherman)
+        {
+            Fisherman->StopFishing();
+        }
+
+        SetActorLocation(CameraShopLocation);
+        SetActorRotation(CameraShopRotation);
+    }
+    else
+    {
+        SetActorLocation(CameraGameLocation);
+        SetActorRotation(CameraGameRotation);
+
+        if (Fisherman)
+        {
+            Fisherman->StartFishing();
+        }
+    }
 }
 
 void AGameManager::BroadcastMoneyChanged()

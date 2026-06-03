@@ -35,6 +35,12 @@ void AFisherman::StartFishing()
     CurrentFishingTime = 0.0f;
 }
 
+void AFisherman::StopFishing()
+{
+	bIsFishing = false;
+	CurrentFishingTime = 0.0f;
+}
+
 void AFisherman::SpeedUpFishing()
 {
     if (!bIsFishing) return;

@@ -23,11 +23,14 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
 
-    UFUNCTION(BlueprintCallable, Category = "Fishing")
-    void StartFishing();
+	UFUNCTION(BlueprintCallable, Category = "Fishing")
+	void StartFishing();
 
-    UFUNCTION(BlueprintCallable, Category = "Fishing")
-    void SpeedUpFishing();
+	UFUNCTION(BlueprintCallable, Category = "Fishing")
+	void StopFishing();
+
+	UFUNCTION(BlueprintCallable, Category = "Fishing")
+	void SpeedUpFishing();
 
     void CatchFish();
 
