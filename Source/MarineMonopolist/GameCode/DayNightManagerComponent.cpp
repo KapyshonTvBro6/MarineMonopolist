@@ -1,4 +1,5 @@
 #include "DayNightManagerComponent.h"
+#include "Engine/DirectionalLight.h"
 
 UDayNightManagerComponent::UDayNightManagerComponent()
 {
@@ -29,6 +30,27 @@ void UDayNightManagerComponent::TickComponent(float DeltaTime, ELevelTick TickTy
         {
             TransitionToNight();
         }
+    }
+
+    if (DirectionalLight)
+    {
+        float Progress;
+        FRotator StartRot, EndRot;
+
+        if (bIsNight)
+        {
+            Progress = 1.0f - (TimeUntilTransition / NightDuration);
+            StartRot = MoonriseRotation;
+            EndRot = MoonsetRotation;
+        }
+        else
+        {
+            Progress = 1.0f - (TimeUntilTransition / DayDuration);
+            StartRot = SunriseRotation;
+            EndRot = SunsetRotation;
+        }
+
+        DirectionalLight->SetActorRotation(FMath::Lerp(StartRot, EndRot, Progress));
     }
 }
 
