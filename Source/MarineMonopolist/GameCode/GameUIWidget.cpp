@@ -41,12 +41,12 @@ void UGameUIWidget::NativeOnInitialized()
     {
         if (FishNotificationWidgetClass && NotificationBox)
         {
-            UFishNotificationWidget* Slot = CreateWidget<UFishNotificationWidget>(this, FishNotificationWidgetClass);
-            if (Slot)
+            UFishNotificationWidget* NotificationSlot = CreateWidget<UFishNotificationWidget>(this, FishNotificationWidgetClass);
+            if (NotificationSlot)
             {
-                NotificationSlots.Add(Slot);
-                NotificationBox->AddChildToVerticalBox(Slot);
-                Slot->SetVisibility(ESlateVisibility::Collapsed);
+                NotificationSlots.Add(NotificationSlot);
+                NotificationBox->AddChildToVerticalBox(NotificationSlot);
+                NotificationSlot->SetVisibility(ESlateVisibility::Collapsed);
             }
         }
     }
