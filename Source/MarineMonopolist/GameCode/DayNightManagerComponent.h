@@ -7,8 +7,6 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDayNightChanged, bool, bIsNight);
 
-class ADirectionalLight;
-
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class MARINEMONOPOLIST_API UDayNightManagerComponent : public UActorComponent
 {
@@ -51,21 +49,6 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Fish")
     float BaseNightFishChance = 0.05f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Light")
-    ADirectionalLight* DirectionalLight;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Light")
-    FRotator SunriseRotation;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Light")
-    FRotator SunsetRotation;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Light")
-    FRotator MoonriseRotation;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Light")
-    FRotator MoonsetRotation;
 
 protected:
     virtual void BeginPlay() override;
