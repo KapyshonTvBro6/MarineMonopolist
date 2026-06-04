@@ -22,5 +22,5 @@ struct FFishData : public FTableRowBase
     float Probability; // 0.0 - 1.0
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    UStaticMesh* FishModel;
+    UTexture2D* FishModel;
 };
