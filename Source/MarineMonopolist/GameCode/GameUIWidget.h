@@ -30,6 +30,9 @@ protected:
     UPROPERTY(meta = (BindWidget))
     UTextBlock* BalanceText;
 
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* BalanceTextGoal;
+	
     // Day/Night
     UPROPERTY(meta = (BindWidget))
     UTextBlock* DayNightText;

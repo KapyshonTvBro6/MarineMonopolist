@@ -337,7 +337,12 @@ void UGameUIWidget::OnMoneyChanged(int32 NewMoney)
 {
     if (BalanceText)
     {
-        BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d"), NewMoney)));
+        BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d$"), NewMoney)));
+    }
+    
+    if (BalanceTextGoal)
+    {
+        BalanceTextGoal->SetText(FText::FromString(FString::Printf(TEXT("Цель: 10000$/%d$"), NewMoney)));
     }
     UpdateUpgradeButtons();
 }
