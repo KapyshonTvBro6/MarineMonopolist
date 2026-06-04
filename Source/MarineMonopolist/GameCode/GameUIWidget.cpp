@@ -41,6 +41,7 @@ void UGameUIWidget::NativeOnInitialized()
 
     if (EnterShopBtn) EnterShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnEnterShopClicked);
     if (ExitShopBtn) ExitShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnExitShopClicked);
+    if (SettingBtn) SettingBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnSettingClicked);
 
     // Fallback for BindWidget — sometimes doesn't restore after editor restart
     if (WidgetTree)
@@ -63,9 +64,19 @@ void UGameUIWidget::NativeOnInitialized()
             UE_LOG(LogTemp, Warning, TEXT("GameUIWidget: BindWidget NavigationCanvas was null, FindWidget gave: %s"),
                 NavigationCanvas ? *NavigationCanvas->GetName() : TEXT("null"));
         }
+        if (!SettingBtn)
+        {
+            SettingBtn = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingBtn")));
+            UE_LOG(LogTemp, Warning, TEXT("GameUIWidget: BindWidget SettingBtn was null, FindWidget gave: %s"),
+                SettingBtn ? *SettingBtn->GetName() : TEXT("null"));
+            if (SettingBtn)
+            {
+                SettingBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnSettingClicked);
+            }
+        }
     }
 
-    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+    UpdateNavigationButtonVisibility();
     if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
     if (DarkOverlay)
     {
@@ -115,6 +126,7 @@ void UGameUIWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
     }
 
     UpdateNetDisplay();
+    UpdateNavigationButtonVisibility();
 }
 
 void UGameUIWidget::UpdateNetDisplay()
@@ -434,6 +446,13 @@ void UGameUIWidget::OnExitShopClicked()
     ExitShop();
 }
 
+void UGameUIWidget::OnSettingClicked()
+{
+    if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+    if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
+    if (SettingBtn) SettingBtn->SetVisibility(ESlateVisibility::Collapsed);
+}
+
 bool UGameUIWidget::IsGamePaused() const
 {
     UWorld* World = GetWorld();
@@ -443,6 +462,26 @@ bool UGameUIWidget::IsGamePaused() const
 bool UGameUIWidget::CanStartShopFade() const
 {
     return !IsGamePaused() && FadeState == EShopFadeState::Idle;
+}
+
+void UGameUIWidget::UpdateNavigationButtonVisibility()
+{
+    const bool bHideButtons = IsGamePaused() || FadeState != EShopFadeState::Idle;
+
+    if (EnterShopBtn)
+    {
+        EnterShopBtn->SetVisibility(!bHideButtons && !bIsInShop ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    }
+
+    if (ExitShopBtn)
+    {
+        ExitShopBtn->SetVisibility(!bHideButtons && bIsInShop ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    }
+
+    if (SettingBtn)
+    {
+        SettingBtn->SetVisibility(!bHideButtons ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    }
 }
 
 void UGameUIWidget::EnterShop()
@@ -464,6 +503,7 @@ void UGameUIWidget::StartFade(bool bTargetIsShop)
     bFadeTargetIsShop = bTargetIsShop;
     FadeState = EShopFadeState::FadeToBlack;
     FadeStartTime = GetWorld()->GetTimeSeconds();
+    UpdateNavigationButtonVisibility();
 
     if (DarkOverlay)
     {
@@ -490,8 +530,6 @@ void UGameUIWidget::OnFadeTick()
             if (bFadeTargetIsShop)
             {
                 bIsInShop = true;
-                if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Collapsed);
-                if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Visible);
                 if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Collapsed);
                 if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Visible);
                 if (GM) GM->SetShopMode(true);
@@ -499,8 +537,6 @@ void UGameUIWidget::OnFadeTick()
             else
             {
                 bIsInShop = false;
-                if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Visible);
-                if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
                 if (GameCanvas) GameCanvas->SetVisibility(ESlateVisibility::Visible);
                 if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
                 if (GM) GM->SetShopMode(false);
@@ -508,6 +544,7 @@ void UGameUIWidget::OnFadeTick()
 
             FadeState = EShopFadeState::FadeFromBlack;
             FadeStartTime = CurrentTime;
+            UpdateNavigationButtonVisibility();
         }
         break;
 
@@ -521,6 +558,7 @@ void UGameUIWidget::OnFadeTick()
                 DarkOverlay->SetVisibility(ESlateVisibility::Collapsed);
             }
             GetWorld()->GetTimerManager().ClearTimer(FadeTimerHandle);
+            UpdateNavigationButtonVisibility();
         }
         break;
     }

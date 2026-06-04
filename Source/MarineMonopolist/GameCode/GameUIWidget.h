@@ -119,6 +119,9 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UButton* ExitShopBtn;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	UButton* SettingBtn;
+
 	// Dark overlay
 	UPROPERTY(meta = (BindWidget))
 	UImage* DarkOverlay;
@@ -154,6 +157,7 @@ private:
 	void UpdateSlotWidget(int32 Index, const FFishData* FishData);
 	bool IsGamePaused() const;
 	bool CanStartShopFade() const;
+	void UpdateNavigationButtonVisibility();
 	void EnterShop();
 	void ExitShop();
 	void StartFade(bool bTargetIsShop);
@@ -163,6 +167,9 @@ private:
 
 	UFUNCTION()
 	void OnExitShopClicked();
+
+	UFUNCTION()
+	void OnSettingClicked();
 
 	UFUNCTION()
 	void OnFadeTick();
