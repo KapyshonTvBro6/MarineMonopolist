@@ -11,6 +11,10 @@ void UFishNotificationWidget::SetFishData(const FFishData& InFishData)
 	{
 		FishPriceText->SetText(FText::AsNumber(InFishData.Price));
 	}
+	if (FishImage && InFishData.FishModel)
+	{
+		FishImage->SetBrushFromTexture(InFishData.FishModel);
+	}
 }
 
 void UFishNotificationWidget::StartDisplay(float Duration)

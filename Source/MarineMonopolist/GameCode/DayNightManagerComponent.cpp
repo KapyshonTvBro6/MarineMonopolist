@@ -1,4 +1,5 @@
 #include "DayNightManagerComponent.h"
+#include "Engine/DirectionalLight.h"
 
 UDayNightManagerComponent::UDayNightManagerComponent()
 {
@@ -9,39 +10,34 @@ UDayNightManagerComponent::UDayNightManagerComponent()
 void UDayNightManagerComponent::BeginPlay()
 {
     Super::BeginPlay();
-    TimeUntilTransition = DayDuration;
+    SunAngle = 0.0f;
     bIsNight = false;
+
+    if (SunLight)
+    {
+        BaseSunRotation = SunLight->GetActorRotation();
+    }
 }
 
 void UDayNightManagerComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    TimeUntilTransition -= DeltaTime;
+    SunAngle += (DeltaTime / FullCycleTime) * 360.0f;
+    if (SunAngle >= 360.0f) SunAngle -= 360.0f;
 
-    if (TimeUntilTransition <= 0.0f)
+    if (SunLight)
     {
-        if (bIsNight)
-        {
-            TransitionToDay();
-        }
-        else
-        {
-            TransitionToNight();
-        }
+        FRotator NewRot = BaseSunRotation;
+        NewRot.Pitch += SunAngle;
+        //NewRot.Yaw += SunAngle;
+        SunLight->SetActorRotation(NewRot);
     }
-}
 
-void UDayNightManagerComponent::TransitionToDay()
-{
-    bIsNight = false;
-    TimeUntilTransition = DayDuration;
-    OnDayNightChanged.Broadcast(false);
-}
-
-void UDayNightManagerComponent::TransitionToNight()
-{
-    bIsNight = true;
-    TimeUntilTransition = NightDuration;
-    OnDayNightChanged.Broadcast(true);
+    bool bNewIsNight = SunAngle <= 180.0f;
+    if (bNewIsNight != bIsNight)
+    {
+        bIsNight = bNewIsNight;
+        OnDayNightChanged.Broadcast(bIsNight);
+    }
 }

@@ -7,6 +7,8 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDayNightChanged, bool, bIsNight);
 
+class ADirectionalLight;
+
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class MARINEMONOPOLIST_API UDayNightManagerComponent : public UActorComponent
 {
@@ -19,9 +21,6 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Day/Night")
     bool IsNight() const { return bIsNight; }
-
-    UFUNCTION(BlueprintCallable, Category = "Day/Night")
-    float GetTimeUntilTransition() const { return TimeUntilTransition; }
 
     UFUNCTION(BlueprintCallable, Category = "Day/Night|Fish")
     UDataTable* GetDayFishTable() const { return DayFishTable; }
@@ -41,22 +40,22 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Fish")
     UDataTable* NightFishTable;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night")
-    float DayDuration = 60.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night")
-    float NightDuration = 30.0f;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Fish")
     float BaseNightFishChance = 0.05f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Cycle")
+    float FullCycleTime = 300.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Cycle")
+    ADirectionalLight* SunLight;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day/Night|Cycle")
+    FRotator BaseSunRotation;
 
 protected:
     virtual void BeginPlay() override;
 
 private:
+    float SunAngle = 0.0f;
     bool bIsNight = false;
-    float TimeUntilTransition = 60.0f;
-
-    void TransitionToDay();
-    void TransitionToNight();
 };
