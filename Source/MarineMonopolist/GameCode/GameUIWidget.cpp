@@ -5,6 +5,7 @@
 #include "UpgradeManagerComponent.h"
 #include "DayNightManagerComponent.h"
 #include "FishNotificationWidget.h"
+#include "GameText.h"
 #include "TimerManager.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Blueprint/WidgetTree.h"
@@ -151,7 +152,7 @@ void UGameUIWidget::UpdateNetDisplay()
     if (!Net)
     {
         if (NetProgressBar) NetProgressBar->SetPercent(0.0f);
-        if (NetFishCountText) NetFishCountText->SetText(FText::FromString(TEXT("")));
+        if (NetFishCountText) NetFishCountText->SetText(FText::GetEmpty());
         if (NetCollectBtn) NetCollectBtn->SetIsEnabled(false);
         return;
     }
@@ -175,7 +176,7 @@ void UGameUIWidget::UpdateNetDisplay()
     int32 FishCount = Net->GetFishCount();
     if (NetFishCountText)
     {
-        NetFishCountText->SetText(FText::FromString(FString::Printf(TEXT("Fish: %d"), FishCount)));
+        NetFishCountText->SetText(MarineMonopolistText::UI::FishCount(FishCount));
     }
 
     if (NetCollectBtn)
@@ -200,7 +201,7 @@ void UGameUIWidget::UpdateBalanceDisplay()
     const int32 CurrentMoney = GM->GetMoney();
     if (BalanceText)
     {
-        BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d"), CurrentMoney)));
+        BalanceText->SetText(MarineMonopolistText::UI::MoneyWithoutCurrency(CurrentMoney));
     }
 
     UpdateGoalDisplay(CurrentMoney);
@@ -217,11 +218,11 @@ void UGameUIWidget::UpdateGoalDisplay(int32 CurrentMoney)
     {
         if (bGoalReached)
         {
-            BalanceTextGoal->SetText(FText::FromString(TEXT("\u0432\u044b \u0434\u043e\u0441\u0442\u0438\u0433\u043b\u0438 \u0446\u0435\u043b\u0438")));
+            BalanceTextGoal->SetText(MarineMonopolistText::UI::GoalReached());
         }
         else
         {
-            BalanceTextGoal->SetText(FText::FromString(FString::Printf(TEXT("\u0426\u0435\u043b\u044c: %d$/%d$"), GoalMoney, CurrentMoney)));
+            BalanceTextGoal->SetText(MarineMonopolistText::UI::GoalProgress(GoalMoney, CurrentMoney));
         }
     }
 
@@ -238,7 +239,7 @@ void UGameUIWidget::UpdateDayNightDisplay()
     if (GM && GM->GetDayNightManager())
     {
         bool bIsNight = GM->GetDayNightManager()->IsNight();
-        DayNightText->SetText(FText::FromString(bIsNight ? TEXT("\x2601 Night") : TEXT("\x2600 Day")));
+        DayNightText->SetText(bIsNight ? MarineMonopolistText::UI::Night() : MarineMonopolistText::UI::Day());
     }
 }
 
@@ -247,21 +248,21 @@ void UGameUIWidget::SetupUpgradeRow(UButton* Btn, UTextBlock* LevelText, UTextBl
 {
     if (LevelText)
     {
-        LevelText->SetText(FText::FromString(FString::Printf(TEXT("Lv.%d/%d"), Level, MaxLevel)));
+        LevelText->SetText(MarineMonopolistText::UI::UpgradeLevel(Level, MaxLevel));
     }
     if (CostText)
     {
         if (Level >= MaxLevel)
         {
-            CostText->SetText(FText::FromString(TEXT("MAX")));
+            CostText->SetText(MarineMonopolistText::UI::UpgradeMax());
         }
         else if (Cost > 0)
         {
-            CostText->SetText(FText::FromString(FString::Printf(TEXT("%d$"), Cost)));
+            CostText->SetText(MarineMonopolistText::UI::UpgradeCost(Cost));
         }
         else
         {
-            CostText->SetText(FText::FromString(TEXT("---")));
+            CostText->SetText(MarineMonopolistText::UI::UpgradeUnavailable());
         }
     }
     if (Btn)
@@ -291,21 +292,21 @@ void UGameUIWidget::UpdateUpgradeButtons()
 
     if (ShipRequirementText)
     {
-        FString Req;
         if (Upgrades->GetShipLevel() >= 3)
         {
-            Req = TEXT("MAX LEVEL");
+            ShipRequirementText->SetText(MarineMonopolistText::UI::ShipMaxLevel());
         }
         else if (!Upgrades->CanUpgradeShip())
         {
-            Req = FString::Printf(TEXT("Need: Rod Lv.%d, Net Lv.%d"),
-                Upgrades->GetRodMaxLevel(), Upgrades->GetNetMaxLevel());
+            ShipRequirementText->SetText(MarineMonopolistText::UI::ShipRequirements(
+                Upgrades->GetRodMaxLevel(),
+                Upgrades->GetNetMaxLevel()
+            ));
         }
         else
         {
-            Req = TEXT("Ready!");
+            ShipRequirementText->SetText(MarineMonopolistText::UI::UpgradeReady());
         }
-        ShipRequirementText->SetText(FText::FromString(Req));
     }
 
     SetupUpgradeRow(ShipUpgradeBtn, ShipLevelText, ShipCostText,
@@ -392,7 +393,7 @@ void UGameUIWidget::OnMoneyChanged(int32 NewMoney)
 {
     if (BalanceText)
     {
-        BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d$"), NewMoney)));
+        BalanceText->SetText(MarineMonopolistText::UI::Money(NewMoney));
     }
     UpdateGoalDisplay(NewMoney);
     UpdateUpgradeButtons();
