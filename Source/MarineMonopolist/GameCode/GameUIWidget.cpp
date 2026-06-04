@@ -9,6 +9,7 @@
 #include "Components/SlateWrapperTypes.h"
 #include "Blueprint/WidgetTree.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 void UGameUIWidget::NativeOnInitialized()
 {
@@ -42,6 +43,7 @@ void UGameUIWidget::NativeOnInitialized()
     if (EnterShopBtn) EnterShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnEnterShopClicked);
     if (ExitShopBtn) ExitShopBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnExitShopClicked);
     if (SettingBtn) SettingBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnSettingClicked);
+    if (ExitGoalBtn) ExitGoalBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnExitGoalClicked);
 
     // Fallback for BindWidget — sometimes doesn't restore after editor restart
     if (WidgetTree)
@@ -74,9 +76,20 @@ void UGameUIWidget::NativeOnInitialized()
                 SettingBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnSettingClicked);
             }
         }
+        if (!ExitGoalBtn)
+        {
+            ExitGoalBtn = Cast<UButton>(WidgetTree->FindWidget(TEXT("ExitGoalBtn")));
+            UE_LOG(LogTemp, Warning, TEXT("GameUIWidget: BindWidget ExitGoalBtn was null, FindWidget gave: %s"),
+                ExitGoalBtn ? *ExitGoalBtn->GetName() : TEXT("null"));
+            if (ExitGoalBtn)
+            {
+                ExitGoalBtn->OnClicked.AddDynamic(this, &UGameUIWidget::OnExitGoalClicked);
+            }
+        }
     }
 
     UpdateNavigationButtonVisibility();
+    if (ExitGoalBtn) ExitGoalBtn->SetVisibility(ESlateVisibility::Collapsed);
     if (ShopCanvas) ShopCanvas->SetVisibility(ESlateVisibility::Collapsed);
     if (DarkOverlay)
     {
@@ -181,11 +194,40 @@ void UGameUIWidget::UpdateAll()
 
 void UGameUIWidget::UpdateBalanceDisplay()
 {
-    if (!BalanceText) return;
     AGameManager* GM = AGameManager::GetInstance();
-    if (GM)
+    if (!GM) return;
+
+    const int32 CurrentMoney = GM->GetMoney();
+    if (BalanceText)
     {
-        BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d"), GM->GetMoney())));
+        BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d"), CurrentMoney)));
+    }
+
+    UpdateGoalDisplay(CurrentMoney);
+}
+
+void UGameUIWidget::UpdateGoalDisplay(int32 CurrentMoney)
+{
+    if (CurrentMoney >= GoalMoney)
+    {
+        bGoalReached = true;
+    }
+
+    if (BalanceTextGoal)
+    {
+        if (bGoalReached)
+        {
+            BalanceTextGoal->SetText(FText::FromString(TEXT("\u0432\u044b \u0434\u043e\u0441\u0442\u0438\u0433\u043b\u0438 \u0446\u0435\u043b\u0438")));
+        }
+        else
+        {
+            BalanceTextGoal->SetText(FText::FromString(FString::Printf(TEXT("\u0426\u0435\u043b\u044c: %d$/%d$"), GoalMoney, CurrentMoney)));
+        }
+    }
+
+    if (ExitGoalBtn)
+    {
+        ExitGoalBtn->SetVisibility(bGoalReached ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
 }
 
@@ -352,11 +394,7 @@ void UGameUIWidget::OnMoneyChanged(int32 NewMoney)
     {
         BalanceText->SetText(FText::FromString(FString::Printf(TEXT("%d$"), NewMoney)));
     }
-    
-    if (BalanceTextGoal)
-    {
-        BalanceTextGoal->SetText(FText::FromString(FString::Printf(TEXT("Цель: 10000$/%d$"), NewMoney)));
-    }
+    UpdateGoalDisplay(NewMoney);
     UpdateUpgradeButtons();
 }
 
@@ -451,6 +489,15 @@ void UGameUIWidget::OnSettingClicked()
     if (EnterShopBtn) EnterShopBtn->SetVisibility(ESlateVisibility::Collapsed);
     if (ExitShopBtn) ExitShopBtn->SetVisibility(ESlateVisibility::Collapsed);
     if (SettingBtn) SettingBtn->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UGameUIWidget::OnExitGoalClicked()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    APlayerController* PlayerController = World->GetFirstPlayerController();
+    UKismetSystemLibrary::QuitGame(World, PlayerController, EQuitPreference::Quit, false);
 }
 
 bool UGameUIWidget::IsGamePaused() const

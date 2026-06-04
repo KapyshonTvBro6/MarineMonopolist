@@ -122,6 +122,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* SettingBtn;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	UButton* ExitGoalBtn;
+
 	// Dark overlay
 	UPROPERTY(meta = (BindWidget))
 	UImage* DarkOverlay;
@@ -131,6 +134,7 @@ protected:
 
 private:
 	static constexpr int32 MaxSlots = 4;
+	static constexpr int32 GoalMoney = 10000;
 
 	TArray<UFishNotificationWidget*> NotificationSlots;
 	TArray<FFishData> NotificationQueue;
@@ -139,6 +143,7 @@ private:
 	FTimerHandle NotificationTimerHandle;
 
 	bool bIsInShop = false;
+	bool bGoalReached = false;
 
 	enum class EShopFadeState : uint8
 	{
@@ -170,6 +175,9 @@ private:
 
 	UFUNCTION()
 	void OnSettingClicked();
+
+	UFUNCTION()
+	void OnExitGoalClicked();
 
 	UFUNCTION()
 	void OnFadeTick();
@@ -215,6 +223,7 @@ private:
 
     void UpdateAll();
     void UpdateBalanceDisplay();
+    void UpdateGoalDisplay(int32 CurrentMoney);
     void UpdateDayNightDisplay();
     void UpdateUpgradeButtons();
     void UpdateNetDisplay();
