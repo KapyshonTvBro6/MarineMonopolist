@@ -8,6 +8,7 @@
 #include "TimerManager.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Blueprint/WidgetTree.h"
+#include "Kismet/GameplayStatics.h"
 
 void UGameUIWidget::NativeOnInitialized()
 {
@@ -433,20 +434,33 @@ void UGameUIWidget::OnExitShopClicked()
     ExitShop();
 }
 
+bool UGameUIWidget::IsGamePaused() const
+{
+    UWorld* World = GetWorld();
+    return World && UGameplayStatics::IsGamePaused(World);
+}
+
+bool UGameUIWidget::CanStartShopFade() const
+{
+    return !IsGamePaused() && FadeState == EShopFadeState::Idle;
+}
+
 void UGameUIWidget::EnterShop()
 {
-    if (bIsInShop || FadeState != EShopFadeState::Idle) return;
+    if (bIsInShop || !CanStartShopFade()) return;
     StartFade(true);
 }
 
 void UGameUIWidget::ExitShop()
 {
-    if (!bIsInShop || FadeState != EShopFadeState::Idle) return;
+    if (!bIsInShop || !CanStartShopFade()) return;
     StartFade(false);
 }
 
 void UGameUIWidget::StartFade(bool bTargetIsShop)
 {
+    if (!CanStartShopFade()) return;
+
     bFadeTargetIsShop = bTargetIsShop;
     FadeState = EShopFadeState::FadeToBlack;
     FadeStartTime = GetWorld()->GetTimeSeconds();
@@ -454,7 +468,7 @@ void UGameUIWidget::StartFade(bool bTargetIsShop)
     if (DarkOverlay)
     {
         DarkOverlay->SetRenderOpacity(0.0f);
-        DarkOverlay->SetVisibility(ESlateVisibility::Visible);
+        DarkOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     }
 
     GetWorld()->GetTimerManager().SetTimer(FadeTimerHandle, this, &UGameUIWidget::OnFadeTick, 0.016f, true);

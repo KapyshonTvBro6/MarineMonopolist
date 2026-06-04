@@ -152,6 +152,8 @@ private:
 
 	void FillSlotsFromQueue();
 	void UpdateSlotWidget(int32 Index, const FFishData* FishData);
+	bool IsGamePaused() const;
+	bool CanStartShopFade() const;
 	void EnterShop();
 	void ExitShop();
 	void StartFade(bool bTargetIsShop);
